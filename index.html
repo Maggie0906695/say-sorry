@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>道歉和好神器｜输入TA的名字，一键生成道歉卡片</title>
 <style>
   :root{
@@ -47,6 +47,7 @@
     background:var(--card); color:var(--text); font-size:16px; margin-bottom:24px;
     outline:none;
   }
+  textarea.input { min-height:120px; resize:vertical; line-height:1.7; }
   .input::placeholder { color:var(--muted); }
   .input:focus { border-color:var(--accent); }
 
@@ -56,6 +57,7 @@
     padding:18px 14px; border-radius:14px; text-align:center; cursor:pointer;
     background:var(--card); border:2px solid var(--card-border); transition:all .2s;
   }
+  .style-card:focus-visible { outline:3px solid var(--accent2); outline-offset:2px; }
   .style-card .s-emoji { font-size:34px; display:block; margin-bottom:8px; }
   .style-card .s-name { font-size:15px; font-weight:700; }
   .style-card .s-desc { font-size:11px; color:var(--muted); margin-top:4px; }
@@ -84,6 +86,7 @@
   .rabbit-scene .rabbit-line { stroke:var(--accent); }
   .rabbit-scene[data-style="fun"] .rabbit-paw { animation-duration:.8s; }
   .rabbit-scene[data-style="lit"] .rabbit-heart { opacity:.75; }
+  .rabbit-scene:not([data-style="cute"]) { display:none; }
   @media (prefers-reduced-motion: reduce) {
     .rabbit-scene *, .rabbit-scene::before, .rabbit-scene::after { animation:none !important; transition:none !important; }
   }
@@ -92,7 +95,7 @@
   .card-title { font-size:24px; font-weight:800; margin-bottom:8px; color:var(--accent2); }
   .card-sub { font-size:14px; color:var(--sub); margin-bottom:20px; }
   .card-text {
-    font-size:16px; line-height:2; color:var(--text); text-align:left;
+    font-size:16px; line-height:2; color:var(--text); text-align:left; white-space:pre-wrap; overflow-wrap:anywhere;
     background:rgba(0,0,0,.18); border-radius:12px; padding:18px; margin-bottom:20px;
   }
   .card-tail { font-size:14px; color:var(--sub); }
@@ -131,7 +134,7 @@
     <div class="style-grid" id="styleGrid"></div>
 
     <div class="field-label">想对 TA 说的话（选填）</div>
-    <input class="input" id="inMsg" placeholder="不填就用默认的，效果也很好～" maxlength="60">
+    <textarea class="input" id="inMsg" placeholder="不填就用默认的，效果也很好～" maxlength="60"></textarea>
 
     <button class="btn" onclick="generate()">生成道歉卡片</button>
   </div>
@@ -182,6 +185,7 @@
     </div>
     <button class="btn" id="copyBtn" onclick="generateCard()">🖼️ 生成道歉卡片</button>
     <div class="card-status" id="cardStatus" role="status" aria-live="polite"></div>
+    <button class="btn ghost" onclick="copyText()">复制文字版</button>
     <button class="btn ghost" onclick="goInput()">换一种风格</button>
     <div class="share-tip">🖼️ 生成图片后保存或发给 TA，<br>看看 TA 会不会秒回「原谅你了」</div>
 
@@ -274,7 +278,7 @@ function show(id){
 function renderStyles(){
   var html = "";
   styles.forEach(function(s){
-    html += '<div class="style-card'+(s.id===curStyle?" on":"")+'" onclick="pickStyle(\''+s.id+'\')">'
+    html += '<div class="style-card'+(s.id===curStyle?" on":"")+'" role="radio" tabindex="0" aria-checked="'+(s.id===curStyle?'true':'false')+'" onclick="pickStyle(\''+s.id+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();pickStyle(\''+s.id+'\')}">'
           + '<span class="s-emoji">'+s.emoji+'</span>'
           + '<div class="s-name">'+s.name+'</div>'
           + '<div class="s-desc">'+s.desc+'</div>'
@@ -286,8 +290,11 @@ function renderStyles(){
 function pickStyle(id){
   curStyle = id;
   var cards = document.querySelectorAll(".style-card");
-  for(var i=0;i<cards.length;i++){ cards[i].classList.remove("on"); }
-  cards[styles.map(function(s){return s.id;}).indexOf(id)].classList.add("on");
+  for(var i=0;i<cards.length;i++){
+    var selected = cards[i].getAttribute("onclick").indexOf("'"+id+"'") >= 0;
+    cards[i].classList.toggle("on", selected);
+    cards[i].setAttribute("aria-checked", selected ? "true" : "false");
+  }
   applyTheme(styles[styles.map(function(s){return s.id;}).indexOf(id)]);
 }
 
@@ -323,7 +330,7 @@ function getCurrentCardData(){
   var name = document.getElementById("inName").value.trim() || "TA";
   var index = styles.map(function(x){return x.id;}).indexOf(curStyle);
   var s = styles[index < 0 ? 0 : index];
-  return {name:name, message:currentMsg || "", style:s};
+  return {name:name, message:currentMsg || "", style:s, subtitle:s.sub, tail:s.tail};
 }
 
 function roundedRect(ctx, x, y, w, h, r){
@@ -339,7 +346,7 @@ function roundedRect(ctx, x, y, w, h, r){
 
 function wrapCanvasText(ctx, text, maxWidth){
   var lines = [];
-  String(text || "").split("\\n").forEach(function(paragraph){
+  String(text || "").split(/\r?\n/).forEach(function(paragraph){
     if(!paragraph){ lines.push(""); return; }
     var line = "";
     for(var i=0;i<paragraph.length;i++){
@@ -381,8 +388,14 @@ function drawCanvasRabbit(ctx, cx, top, scale, style){
   ctx.fillStyle = "#fff7fb";
   ctx.save(); ctx.rotate(.5); ctx.beginPath(); ctx.ellipse(-34,81,12,20,0,0,Math.PI*2); ctx.fill(); ctx.restore();
   ctx.save(); ctx.rotate(-.15); ctx.beginPath(); ctx.ellipse(34,83,12,20,0,0,Math.PI*2); ctx.fill(); ctx.restore();
-  ctx.fillStyle = yellow; ctx.beginPath(); ctx.arc(-39,70,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = yellow;
+  ctx.beginPath(); ctx.arc(-39,70,5,0,Math.PI*2); ctx.fill();
   ctx.beginPath(); ctx.arc(39,71,5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(35,-43); ctx.bezierCurveTo(27,-55,10,-48,17,-35);
+  ctx.bezierCurveTo(21,-27,35,-18,35,-18);
+  ctx.bezierCurveTo(35,-18,49,-27,53,-35);
+  ctx.bezierCurveTo(60,-48,43,-55,35,-43); ctx.fill();
   ctx.restore();
 }
 
@@ -412,7 +425,7 @@ function drawCardCanvas(data){
   ctx.fillStyle = "rgba(0,0,0,.2)"; roundedRect(ctx,boxX,boxY,boxW,boxH,28); ctx.fill();
   ctx.textAlign = "left"; ctx.fillStyle = "#fff"; ctx.font = "32px -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif";
   var lines = wrapCanvasText(ctx,data.message,boxW-96), lineHeight=58, startY=boxY+78, maxLines=8;
-  if(lines.length>maxLines){ lines=lines.slice(0,maxLines); lines[maxLines-1] = lines[maxLines-1].slice(0,-1)+"…"; }
+  if(lines.length>maxLines){ lines=lines.slice(0,maxLines); lines[maxLines-1] = lines[maxLines-1].replace(/.$/,"")+"…"; }
   lines.forEach(function(line,i){ ctx.fillText(line,boxX+48,startY+i*lineHeight); });
   ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.82)"; ctx.font = "28px -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif";
   ctx.fillText(s.tail,width/2,1135);
@@ -433,10 +446,19 @@ function canvasToBlob(canvas, done){
 }
 
 function downloadBlob(blob, fileName){
-  var url=URL.createObjectURL(blob), link=document.createElement("a");
-  link.href=url; link.download=fileName; link.style.display="none";
-  document.body.appendChild(link); link.click();
-  setTimeout(function(){ document.body.removeChild(link); URL.revokeObjectURL(url); },1000);
+  if(!blob || !window.URL || !URL.createObjectURL) return false;
+  var url;
+  try {
+    url=URL.createObjectURL(blob);
+    var link=document.createElement("a");
+    link.href=url; link.download=fileName; link.style.display="none";
+    document.body.appendChild(link); link.click();
+    setTimeout(function(){ if(link.parentNode) link.parentNode.removeChild(link); URL.revokeObjectURL(url); },1000);
+    return true;
+  } catch(e){
+    if(url) URL.revokeObjectURL(url);
+    return false;
+  }
 }
 
 function generateCard(){
@@ -447,23 +469,25 @@ function generateCard(){
   canvasToBlob(canvas,function(blob){
     if(!blob){ status.textContent="图片生成失败，可以长按页面截图～"; return; }
     var fileName="道歉卡片-"+safeFileName(data.name)+".png";
-    if(navigator.share && navigator.canShare){
+    if(navigator.share){
       try {
         var file=new File([blob],fileName,{type:"image/png"});
-        if(navigator.canShare({files:[file]})){
-          navigator.share({title:"道歉卡片",files:[file]}).then(function(){ status.textContent="已打开分享面板～"; }).catch(function(){ downloadBlob(blob,fileName); status.textContent="卡片已生成，正在下载～"; });
+        if(!navigator.canShare || navigator.canShare({files:[file]})){
+          navigator.share({title:"道歉卡片",files:[file]}).then(function(){ status.textContent="已打开分享面板～"; }).catch(function(error){
+            if(error && error.name === "AbortError"){ status.textContent="已取消分享，图片仍可重新生成～"; return; }
+            status.textContent=downloadBlob(blob,fileName) ? "分享不可用，卡片已下载～" : "保存失败，可以长按页面截图～";
+          });
           return;
         }
       } catch(e){}
     }
-    downloadBlob(blob,fileName);
-    status.textContent="卡片已生成，正在下载～";
+    status.textContent=downloadBlob(blob,fileName) ? "卡片已生成，正在下载～" : "保存失败，可以长按页面截图～";
   });
 }
 
 function copyText(){
   var data=getCurrentCardData();
-  var text=data.name+"，对不起。\\n\\n"+data.message+"\\n\\n"+data.style.tail;
+  var text=data.name+"，对不起。\n\n"+data.message+"\n\n"+data.style.tail;
   var done=function(){ document.getElementById("cardStatus").textContent="文字已复制，也可以直接粘贴给 TA～"; };
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text,done); }); }
   else { fallbackCopy(text,done); }
