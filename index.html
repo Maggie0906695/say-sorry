@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>道歉和好神器｜输入TA的名字，一键生成道歉卡片</title>
+<style>
+  :root{
+    --bg1:#1a1a2e; --bg2:#16213e; --bg3:#0f3460;
+    --card:rgba(255,255,255,.08);
+    --card-border:rgba(255,255,255,.12);
+    --accent:#ff8fab; --accent2:#ffb74d;
+    --text:#fff; --sub:#c8c8e0; --muted:#8a8aa8;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 50%,var(--bg3) 100%);
+    min-height:100vh; color:var(--text); padding:0 20px 40px;
+    transition:background .5s;
+  }
+  .wrap { max-width:560px; margin:0 auto; }
+  .screen { display:none; padding-top:50px; }
+  .screen.active { display:block; }
+
+  /* 开场 */
+  .start-emoji { font-size:64px; text-align:center; margin-bottom:20px; }
+  .title { font-size:26px; font-weight:800; text-align:center; line-height:1.4; margin-bottom:12px; }
+  .subtitle { font-size:15px; color:var(--sub); text-align:center; line-height:1.7; margin-bottom:8px; }
+  .tip { font-size:12px; color:var(--muted); text-align:center; margin-bottom:36px; }
+  .btn {
+    display:block; width:100%; padding:16px; border:none; border-radius:14px;
+    font-size:17px; font-weight:700; cursor:pointer; text-align:center; color:#fff;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    box-shadow:0 6px 20px rgba(255,107,107,.3);
+  }
+  .btn:active { transform:scale(.97); }
+  .btn.ghost {
+    background:transparent; border:1px solid var(--card-border); color:var(--sub);
+    box-shadow:none; margin-top:12px; font-weight:600;
+  }
+
+  /* 输入区 */
+  .field-label { font-size:14px; color:var(--sub); margin-bottom:10px; }
+  .input {
+    width:100%; padding:16px 18px; border-radius:12px; border:1px solid var(--card-border);
+    background:var(--card); color:var(--text); font-size:16px; margin-bottom:24px;
+    outline:none;
+  }
+  .input::placeholder { color:var(--muted); }
+  .input:focus { border-color:var(--accent); }
+
+  /* 风格选择 */
+  .style-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px; }
+  .style-card {
+    padding:18px 14px; border-radius:14px; text-align:center; cursor:pointer;
+    background:var(--card); border:2px solid var(--card-border); transition:all .2s;
+  }
+  .style-card .s-emoji { font-size:34px; display:block; margin-bottom:8px; }
+  .style-card .s-name { font-size:15px; font-weight:700; }
+  .style-card .s-desc { font-size:11px; color:var(--muted); margin-top:4px; }
+  .style-card.on { border-color:var(--accent); background:rgba(255,255,255,.14); }
+
+  /* 结果卡片 */
+  .card {
+    background:var(--card); border:1px solid var(--card-border);
+    border-radius:20px; padding:32px 26px; margin-bottom:20px; text-align:center;
+  }
+  .card-emoji { font-size:56px; display:block; margin-bottom:16px; }
+  .card-title { font-size:24px; font-weight:800; margin-bottom:8px; color:var(--accent2); }
+  .card-sub { font-size:14px; color:var(--sub); margin-bottom:20px; }
+  .card-text {
+    font-size:16px; line-height:2; color:var(--text); text-align:left;
+    background:rgba(0,0,0,.18); border-radius:12px; padding:18px; margin-bottom:20px;
+  }
+  .card-tail { font-size:14px; color:var(--sub); }
+  .share-tip { text-align:center; font-size:13px; color:var(--muted); margin:14px 0 22px; line-height:1.8; }
+
+  /* 升单钩子 */
+  .upsell {
+    background:rgba(255,255,255,.06); border:1px dashed var(--card-border);
+    border-radius:14px; padding:18px; margin-top:26px; text-align:center;
+  }
+  .upsell b { color:var(--accent2); }
+  .upsell p { font-size:14px; line-height:1.9; color:var(--sub); }
+  .footer { text-align:center; font-size:11px; color:var(--muted); margin-top:30px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 开场 -->
+  <div class="screen active" id="screen-start">
+    <div class="start-emoji">🕊️</div>
+    <div class="title">道歉和好神器</div>
+    <div class="subtitle">输入 TA 的名字，一键生成道歉卡片</div>
+    <div class="subtitle">可爱 / 温柔 / 搞笑 / 文艺，四种风格任选</div>
+    <div class="tip">约 30 秒 · 嘴硬星人专用 · 和好要趁早</div>
+    <button class="btn" onclick="goInput()">开始道歉</button>
+    <div class="footer">⚠️ 仅供哄人娱乐使用，吵架还得真心</div>
+  </div>
+
+  <!-- 输入 -->
+  <div class="screen" id="screen-input">
+    <div class="field-label">TA 的昵称（必填）</div>
+    <input class="input" id="inName" placeholder="比如：小布布 / 宝宝 / 那个生气的家伙" maxlength="12">
+
+    <div class="field-label">选一种道歉风格</div>
+    <div class="style-grid" id="styleGrid"></div>
+
+    <div class="field-label">想对 TA 说的话（选填）</div>
+    <input class="input" id="inMsg" placeholder="不填就用默认的，效果也很好～" maxlength="60">
+
+    <button class="btn" onclick="generate()">生成道歉卡片</button>
+  </div>
+
+  <!-- 结果 -->
+  <div class="screen" id="screen-result">
+    <div class="card">
+      <span class="card-emoji" id="rEmoji"></span>
+      <div class="card-title" id="rTitle"></div>
+      <div class="card-sub" id="rSub"></div>
+      <div class="card-text" id="rText"></div>
+      <div class="card-tail" id="rTail"></div>
+    </div>
+    <button class="btn" id="copyBtn" onclick="copyText()">📋 复制道歉文字，直接发给 TA</button>
+    <button class="btn ghost" onclick="goInput()">换一种风格</button>
+    <div class="share-tip">📸 也可以长按截图发给 TA，<br>看看 TA 会不会秒回「原谅你了」</div>
+
+    <div class="upsell">
+      <p>💝 想要<b>只属于 TA 一个人的专属版</b>？</p>
+      <p>把 TA 的照片、你们的纪念日、只属于你俩的梗做进去</p>
+      <p>私信我 / 加微信：<b id="wechat">你的微信号</b></p>
+    </div>
+
+    <div class="footer">⚠️ 仅供哄人娱乐使用，吵架还得真心</div>
+  </div>
+
+</div>
+
+<script>
+// ===== 改这里：你的微信号（结果页升单钩子会显示）=====
+var WECHAT = "你的微信号";
+
+// ===== 4 种风格 =====
+var styles = [
+  {id:"cute", name:"可爱风", emoji:"🐰", desc:"软萌撒娇",
+   bg:["#3d1c2e","#5c2a4a","#7a3b5c"], accent:"#ff8fab", accent2:"#ffb3c6",
+   sub:"对你撒娇，卖萌求原谅",
+   tail:"🐰 我错啦，抱抱我嘛～"},
+  {id:"soft", name:"温柔风", emoji:"🌸", desc:"温柔诚恳",
+   bg:["#2e1a2a","#4a2a3d","#66364f"], accent:"#ffb74d", accent2:"#ffd180",
+   sub:"认真跟你道歉，不耍赖",
+   tail:"🌸 我们和好吧，好不好"},
+  {id:"fun", name:"搞笑风", emoji:"🤡", desc:"幽默化解",
+   bg:["#3a2f12","#5c4a1a","#7a6422"], accent:"#fdd835", accent2:"#ffee58",
+   sub:"插科打诨，让你先消气",
+   tail:"🤡 求求您给个台阶下"},
+  {id:"lit", name:"文艺风", emoji:"🌙", desc:"文艺深情",
+   bg:["#1a1a2e","#16213e","#0f3460"], accent:"#7c4dff", accent2:"#b388ff",
+   sub:"把说不出口的话写成诗",
+   tail:"🌙 今晚的月亮替我道歉"}
+];
+
+// 每个风格的默认话术库（{name} 会被昵称替换，随机出一套）
+var defaultMsgs = {
+  cute:[
+    "{name}宝宝～我错啦，别生气了好不好嘛😭\n\n你最好啦，我以后不惹你生气了，给你买好吃的赔罪🍰",
+    "{name}～我反省了一晚上，发现我昨天好过分哦🥺\n\n你大人有大量，别跟笨蛋计较嘛，我保证下次不嘴硬了",
+    "{name}我错啦我错啦我错啦！重要的事说三遍🥹\n\n你别不理我嘛，你不理我我饭都吃不香了",
+    "呜呜呜{name}～我收回昨天那些气话，都是我不对😭\n\n抱抱嘛，和好和好，我还给你准备了小惊喜🎁",
+    "{name}～看在我这么可爱的份上，原谅我这一次好不好呀🐰\n\n下次再惹你生气，我就罚自己给你买十杯奶茶🧋"
+  ],
+  soft:[
+    "{name}，对不起。\n\n是我不好，让你难过了。我知道你现在不想理我，但我还是想认真跟你说声抱歉。\n\n等你气消了，我们好好说说话，好吗？",
+    "{name}，昨天是我的错，我不该说那些话。\n\n你说的每一句其实我都有听进去，只是当时太倔了。给我个机会，我们心平气和聊聊，好吗？",
+    "{name}，对不起，我不该让你一个人消化那些委屈。\n\n你要是不开心，随时跟我说，我会好好听，不再急着反驳你。",
+    "{name}，我认真想过了，这件事是我不对。\n\n我不求你马上原谅，只希望你别把难过憋在心里。我想陪你一起把话说开。",
+    "{name}，抱歉，让你失望了。\n\n我知道道歉不是嘴上说说，我会用行动改。你愿意再给我一次机会吗？"
+  ],
+  fun:[
+    "{name}大人，小的知错了🙏\n\n昨晚是我嘴硬，是我飘了，我认罚。您大人有大量，给个台阶下呗，我给您磕一个🧎",
+    "{name}，我错了，错得离谱，错得自己都想抽自己两个嘴巴子😂\n\n您别生气，气坏了身子不值当，要不您先骂我两句消消气？",
+    "报告{name}长官，本人已深刻检讨，申请从「嘴硬星」撤离，回归「你身边」😆\n\n请批示，我保证态度端正。",
+    "{name}，经过一夜面壁，我得出一个结论：我昨天的嘴，今天想借你的台阶下一下🙏\n\n行行好，拉兄弟一把。",
+    "在线求原谅{name}🙏\n\n本人于昨日正式犯浑，现已悔过。要不这样，你罚我干一个月家务，成交不？😏"
+  ],
+  lit:[
+    "{name}，有些话当面说不出口。\n\n对不起，是我太笨，总在最爱的人面前逞强。今晚的月亮很亮，我想你，想和好。",
+    "{name}，我翻来覆去想了一夜，最舍不得的还是你。\n\n那些伤人的话不是本意，只是我逞强的方式太蠢了。让我重新好好待你，好吗？",
+    "{name}，其实每次吵完架，我都后悔。\n\n后悔嘴硬，后悔把最温柔的一面藏起来。如果时间能重来，我会先抱住你，而不是讲道理。",
+    "{name}，世界这么大，我还是只想和你分享月亮。\n\n对不起，是我把最坏的情绪留给了最亲的人。以后换我哄你。",
+    "{name}，道歉的话我酝酿了很久，删了又写。\n\n最后只剩一句：别走。我们慢慢来，我会改。"
+  ]
+};
+
+// 当前卡片使用的话术（复制时复用，保证卡片和复制内容一致）
+var currentMsg = "";
+
+// 选最终话术：用户自定义优先，否则从风格话术库里随机出一套
+function pickFinalMsg(name, msg, styleId){
+  if(msg){ return msg; }
+  var pool = defaultMsgs[styleId];
+  return pool[Math.floor(Math.random()*pool.length)].split("{name}").join(name);
+}
+
+var curStyle = "cute";
+
+function goInput(){ show("screen-input"); }
+function show(id){
+  var screens = document.querySelectorAll(".screen");
+  for(var i=0;i<screens.length;i++){ screens[i].classList.remove("active"); }
+  document.getElementById(id).classList.add("active");
+}
+
+function renderStyles(){
+  var html = "";
+  styles.forEach(function(s){
+    html += '<div class="style-card'+(s.id===curStyle?" on":"")+'" onclick="pickStyle(\''+s.id+'\')">'
+          + '<span class="s-emoji">'+s.emoji+'</span>'
+          + '<div class="s-name">'+s.name+'</div>'
+          + '<div class="s-desc">'+s.desc+'</div>'
+          + '</div>';
+  });
+  document.getElementById("styleGrid").innerHTML = html;
+}
+
+function pickStyle(id){
+  curStyle = id;
+  var cards = document.querySelectorAll(".style-card");
+  for(var i=0;i<cards.length;i++){ cards[i].classList.remove("on"); }
+  cards[styles.map(function(s){return s.id;}).indexOf(id)].classList.add("on");
+  applyTheme(styles[styles.map(function(s){return s.id;}).indexOf(id)]);
+}
+
+function applyTheme(s){
+  document.documentElement.style.setProperty("--bg1", s.bg[0]);
+  document.documentElement.style.setProperty("--bg2", s.bg[1]);
+  document.documentElement.style.setProperty("--bg3", s.bg[2]);
+  document.documentElement.style.setProperty("--accent", s.accent);
+  document.documentElement.style.setProperty("--accent2", s.accent2);
+}
+
+function generate(){
+  var name = document.getElementById("inName").value.trim();
+  if(!name){ alert("先填 TA 的昵称呀～"); return; }
+  var msg = document.getElementById("inMsg").value.trim();
+  var s = styles[styles.map(function(x){return x.id;}).indexOf(curStyle)];
+
+  applyTheme(s);
+  document.getElementById("rEmoji").textContent = s.emoji;
+  document.getElementById("rTitle").textContent = name + "，对不起";
+  document.getElementById("rSub").textContent = s.sub;
+  var finalMsg = pickFinalMsg(name, msg, s.id);
+  currentMsg = finalMsg;
+  document.getElementById("rText").textContent = finalMsg;
+  document.getElementById("rTail").textContent = s.tail;
+  document.getElementById("wechat").textContent = WECHAT;
+  show("screen-result");
+}
+
+function copyText(){
+  var name = document.getElementById("inName").value.trim() || "TA";
+  var s = styles[styles.map(function(x){return x.id;}).indexOf(curStyle)];
+  var text = name + "，对不起。\n\n" + currentMsg + "\n\n" + s.tail;
+
+  var done = function(){ alert("已复制，快去发给 TA 吧 🕊️"); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text, done); });
+  } else { fallbackCopy(text, done); }
+}
+
+function fallbackCopy(text, done){
+  var ta = document.createElement("textarea");
+  ta.value = text; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); done(); }catch(e){ alert("复制失败，长按截图也可以～"); }
+  document.body.removeChild(ta);
+}
+
+// 初始化
+renderStyles();
+applyTheme(styles[0]);
+document.getElementById("wechat").textContent = WECHAT;
+</script>
+</body>
+</html>
