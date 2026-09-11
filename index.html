@@ -400,13 +400,15 @@ function drawCanvasRabbit(ctx, cx, top, scale, style){
 }
 
 function drawCardCanvas(data){
-  var width = 1080, height = 1350, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var width = 1080, height = 1350;
+  // 固定 2 倍导出像素，避免低 DPR 设备生成的 PNG 被放大后发糊。
+  var exportScale = 2;
   var canvas = document.createElement("canvas");
-  canvas.width = width*dpr; canvas.height = height*dpr;
+  canvas.width = width*exportScale; canvas.height = height*exportScale;
   canvas.style.width = width+"px"; canvas.style.height = height+"px";
   var ctx = canvas.getContext("2d");
   if(!ctx) return null;
-  ctx.scale(dpr,dpr);
+  ctx.scale(exportScale,exportScale);
   var s = data.style;
   var grad = ctx.createLinearGradient(0,0,width,height);
   grad.addColorStop(0,s.bg[0]); grad.addColorStop(.52,s.bg[1]); grad.addColorStop(1,s.bg[2]);
