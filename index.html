@@ -480,6 +480,10 @@ function downloadBlob(blob, fileName){
   }
 }
 
+function isMobileDevice(){
+  return /Android|webOS|iPhone|iPad|iPod|Windows Phone|Mobi/i.test(navigator.userAgent || "");
+}
+
 function generateCard(){
   var status=document.getElementById("cardStatus"), data=getCurrentCardData();
   status.textContent="正在生成卡片…";
@@ -488,7 +492,8 @@ function generateCard(){
   canvasToBlob(canvas,function(blob){
     if(!blob){ status.textContent="图片生成失败，可以长按页面截图～"; return; }
     var fileName="道歉卡片-"+safeFileName(data.name)+".png";
-    if(navigator.share){
+    // 桌面端直接下载，避免 Windows 共享面板误识别微信安装状态。
+    if(isMobileDevice() && navigator.share){
       try {
         var file=new File([blob],fileName,{type:"image/png"});
         if(!navigator.canShare || navigator.canShare({files:[file]})){
@@ -500,7 +505,9 @@ function generateCard(){
         }
       } catch(e){}
     }
-    status.textContent=downloadBlob(blob,fileName) ? "卡片已生成，正在下载～" : "保存失败，可以长按页面截图～";
+    status.textContent=downloadBlob(blob,fileName)
+      ? (isMobileDevice() ? "卡片已生成，正在下载～" : "卡片已生成，正在下载；下载后可拖入微信发送～")
+      : "保存失败，可以长按页面截图～";
   });
 }
 
